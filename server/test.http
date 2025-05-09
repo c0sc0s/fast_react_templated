@@ -1,0 +1,122 @@
+### 变量设置
+@baseUrl = http://localhost:3001/api/v1
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMsImVtYWlsIjoidGVzMnRAZXhhbXBsZS5jb20iLCJpYXQiOjE3NDU5MTA2NDIsImV4cCI6MTc0NjUxNTQ0Mn0.ZXk6klI4Ad9nMqwL9bWI2DFYKSASxkZ4yYiaM4ylBl8
+
+@authToken2 = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQsImVtYWlsIjoiYWJjQGV4YW1wbGUuY29tIiwiaWF0IjoxNzQ1OTEwODM3LCJleHAiOjE3NDY1MTU2Mzd9.F9XlyIMoJKUqGnDhl7e9-k4KLDZkf3ffypKdcoYu1NQ
+
+@userId = 3
+@friendId = 2
+@requestId = 1
+
+### 健康检查
+GET {{baseUrl}}/health
+Accept: application/json
+
+### ==================== 认证相关 API ====================
+
+### 注册用户
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "abc",
+  "email": "abc@example.com",
+  "password": "123456",
+  "phone": "12345678301"
+}
+
+### 登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "abc@example.com",
+  "password": "123456"
+}
+
+### 登出
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{authToken}}
+
+### ==================== 用户相关 API ====================
+
+### 获取当前登录用户信息
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 获取所有用户
+GET {{baseUrl}}/users/all
+Accept: application/json
+
+### 获取指定用户信息
+GET {{baseUrl}}/users/{{userId}}
+Accept: application/json
+Authorization: Bearer {{authToken}}
+##token
+
+### 搜索用户
+GET {{baseUrl}}/users/search?keyword=abc&page=1&limit=10
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### ==================== 好友相关 API ====================
+
+### 获取好友列表
+GET {{baseUrl}}/users/friends
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 获取待处理的好友请求
+GET {{baseUrl}}/users/friend-requests
+Authorization: Bearer {{authToken2}}
+Accept: application/json
+
+### 发送好友请求
+POST {{baseUrl}}/users/add-friend
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "userId": 4,
+  "message": "我们一起玩游戏吧！"
+}
+
+### 处理好友请求 - 接受
+POST {{baseUrl}}/users/handle-friend-request
+Authorization: Bearer {{authToken2}}
+Content-Type: application/json
+
+{
+  "requestId": 2,
+  "action": "accept"
+}
+
+### 处理好友请求 - 拒绝
+POST {{baseUrl}}/users/handle-friend-request
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "requestId": {{requestId}},
+  "action": "reject"
+}
+
+### 处理好友请求 - 屏蔽
+POST {{baseUrl}}/users/handle-friend-request
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "requestId": {{requestId}},
+  "action": "block"
+}
+
+### 删除好友
+POST {{baseUrl}}/users/delete-friend
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "friendshipId": 1
+}

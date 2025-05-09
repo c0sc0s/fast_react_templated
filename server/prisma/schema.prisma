@@ -1,0 +1,149 @@
+datasource db {
+  provider = "sqlite" // 可根据需要替换为 MongoDB 或其他数据库
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 用户模块
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  phone        String?   @unique
+  username     String    @unique
+  password     String // 存储加密后的密码
+  avatar       String? // 头像URL
+  bio          String? // 个人简介
+  status       String    @default("offline") // online, offline, away, busy
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // 关联关系
+  sentMessages Message[] @relation("MessageSender")
+
+  // 好友关系 - 双向关系
+  friendshipsInitiated Friendship[] @relation("FriendshipInitiator")
+  friendshipsReceived  Friendship[] @relation("FriendshipReceiver")
+
+  // 私聊参与
+  conversationParticipants ConversationParticipant[]
+
+  // 群组相关
+  createdGroups Group[]       @relation("GroupCreator")
+  groupMembers  GroupMember[]
+
+  // 通话相关 - 已整合到 Message 中
+  receivedCalls Message[] @relation("CallReceiver")
+}
+
+// 好友关系
+model Friendship {
+  id          Int      @id @default(autoincrement())
+  initiatorId Int // 发起好友请求的用户
+  receiverId  Int // 接收好友请求的用户
+  status      String // "pending", "accepted", "rejected", "blocked"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  initiator User @relation("FriendshipInitiator", fields: [initiatorId], references: [id])
+  receiver  User @relation("FriendshipReceiver", fields: [receiverId], references: [id])
+
+  @@unique([initiatorId, receiverId])
+}
+
+// 会话 - 统一处理私聊和群聊
+model Conversation {
+  id            Int       @id @default(autoincrement())
+  type          String // "direct" (私聊), "group" (群聊)
+  groupId       Int? // 如果是群聊，关联到群组
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages     Message[]
+  participants ConversationParticipant[]
+  group        Group?                    @relation(fields: [groupId], references: [id])
+}
+
+// 会话参与者 - 管理用户在会话中的状态
+model ConversationParticipant {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  userId         Int
+  lastReadAt     DateTime @default(now())
+  isArchived     Boolean  @default(false)
+  isMuted        Boolean  @default(false)
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+// 消息 - 整合了通话功能
+model Message {
+  id             Int     @id @default(autoincrement())
+  conversationId Int
+  senderId       Int
+  receiverId     Int? // 专用于通话类型消息
+  content        String?
+  type           String  @default("text") // "text", "image", "file", "audio", "video", "call_audio", "call_video"
+  mediaUrl       String? // 媒体文件URL
+  replyToId      Int? // 回复的消息ID
+
+  // 消息状态
+  status String @default("sent") // "sending", "sent", "delivered", "read", "failed"
+
+  // 通话相关属性
+  callStatus    String? // "missed", "answered", "rejected", "completed" - 仅用于通话类型
+  callStartedAt DateTime? // 通话开始时间 - 仅用于通话类型
+  callEndedAt   DateTime? // 通话结束时间 - 仅用于通话类型
+  callDuration  Int? // 通话时长（秒）- 仅用于通话类型
+
+  // 时间戳
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // 关系
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+  receiver     User?        @relation("CallReceiver", fields: [receiverId], references: [id]) // 仅用于通话类型
+  replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReplies")
+}
+
+// 群组
+model Group {
+  id          Int       @id @default(autoincrement())
+  name        String
+  avatar      String?
+  description String?
+  creatorId   Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  creator       User           @relation("GroupCreator", fields: [creatorId], references: [id])
+  members       GroupMember[]
+  conversations Conversation[]
+}
+
+// 群组成员
+model GroupMember {
+  id       Int      @id @default(autoincrement())
+  groupId  Int
+  userId   Int
+  role     String   @default("member") // "owner", "admin", "member"
+  nickname String?
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}

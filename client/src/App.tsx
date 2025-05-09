@@ -22,8 +22,6 @@ function App() {
 }
 
 function AppContent() {
-
-
   return (
     <main className='h-screen w-screen'>
       <Toaster />
